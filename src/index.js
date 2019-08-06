@@ -1,10 +1,8 @@
 /* eslint-disable jsx-a11y/anchor-has-content */
 import React from "react";
-import warning from "warning";
 import PropTypes from "prop-types";
 import invariant from "invariant";
 import createContext from "create-react-context";
-import { polyfill } from "react-lifecycles-compat";
 import {
   startsWith,
   pick,
@@ -178,9 +176,7 @@ class RouterImpl extends React.PureComponent {
       basepath,
       primary,
       children,
-      baseuri,
-      component = "div",
-      ...domProps
+      baseuri
     } = this.props;
     let routes = React.Children.map(children, createRoute(basepath));
     let { pathname } = location;
@@ -215,16 +211,9 @@ class RouterImpl extends React.PureComponent {
         )
       );
 
-      // using 'div' for < 16.3 support
-      let FocusWrapper = primary ? FocusHandler : component;
-      // don't pass any props to 'div'
-      let wrapperProps = primary
-        ? { uri, location, component, ...domProps }
-        : domProps;
-
       return (
         <BaseContext.Provider value={{ baseuri: uri, basepath }}>
-          <FocusWrapper {...wrapperProps}>{clone}</FocusWrapper>
+          {clone}
         </BaseContext.Provider>
       );
     } else {
@@ -245,126 +234,6 @@ class RouterImpl extends React.PureComponent {
     }
   }
 }
-
-let FocusContext = createNamedContext("Focus");
-
-let FocusHandler = ({ uri, location, component, ...domProps }) => (
-  <FocusContext.Consumer>
-    {requestFocus => (
-      <FocusHandlerImpl
-        {...domProps}
-        component={component}
-        requestFocus={requestFocus}
-        uri={uri}
-        location={location}
-      />
-    )}
-  </FocusContext.Consumer>
-);
-
-// don't focus on initial render
-let initialRender = true;
-let focusHandlerCount = 0;
-
-class FocusHandlerImpl extends React.Component {
-  state = {};
-
-  static getDerivedStateFromProps(nextProps, prevState) {
-    let initial = prevState.uri == null;
-    if (initial) {
-      return {
-        shouldFocus: true,
-        ...nextProps
-      };
-    } else {
-      let myURIChanged = nextProps.uri !== prevState.uri;
-      let navigatedUpToMe =
-        prevState.location.pathname !== nextProps.location.pathname &&
-        nextProps.location.pathname === nextProps.uri;
-      return {
-        shouldFocus: myURIChanged || navigatedUpToMe,
-        ...nextProps
-      };
-    }
-  }
-
-  componentDidMount() {
-    focusHandlerCount++;
-    this.focus();
-  }
-
-  componentWillUnmount() {
-    focusHandlerCount--;
-    if (focusHandlerCount === 0) {
-      initialRender = true;
-    }
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    if (prevProps.location !== this.props.location && this.state.shouldFocus) {
-      this.focus();
-    }
-  }
-
-  focus() {
-    if (process.env.NODE_ENV === "test") {
-      // getting cannot read property focus of null in the tests
-      // and that bit of global `initialRender` state causes problems
-      // should probably figure it out!
-      return;
-    }
-
-    let { requestFocus } = this.props;
-
-    if (requestFocus) {
-      requestFocus(this.node);
-    } else {
-      if (initialRender) {
-        initialRender = false;
-      } else {
-        // React polyfills [autofocus] and it fires earlier than cDM,
-        // so we were stealing focus away, this line prevents that.
-        if (!this.node.contains(document.activeElement)) {
-          this.node.focus();
-        }
-      }
-    }
-  }
-
-  requestFocus = node => {
-    if (!this.state.shouldFocus) {
-      node.focus();
-    }
-  };
-
-  render() {
-    let {
-      children,
-      style,
-      requestFocus,
-      role = "group",
-      component: Comp = "div",
-      uri,
-      location,
-      ...domProps
-    } = this.props;
-    return (
-      <Comp
-        style={{ outline: "none", ...style }}
-        tabIndex="-1"
-        role={role}
-        ref={n => (this.node = n)}
-        {...domProps}
-      >
-        <FocusContext.Provider value={this.requestFocus}>
-          {this.props.children}
-        </FocusContext.Provider>
-      </Comp>
-    );
-  }
-}
-
-polyfill(FocusHandlerImpl);
 
 let k = () => {};
 
