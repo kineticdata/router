@@ -49,10 +49,12 @@ let Location = ({ children }) => (
 
 class LocationProvider extends React.Component {
   static propTypes = {
+    hashRouting: PropTypes.bool,
     history: PropTypes.object.isRequired
   };
 
   static defaultProps = {
+    hashRouting: false,
     history: globalHistory
   };
 
@@ -64,10 +66,11 @@ class LocationProvider extends React.Component {
   getContext() {
     let {
       props: {
+        hashRouting,
         history: { navigate, location }
       }
     } = this;
-    return { navigate, location };
+    return { navigate, location, hashRouting };
   }
 
   componentDidCatch(error, info) {
@@ -155,7 +158,7 @@ let Router = props => (
   <BaseContext.Consumer>
     {baseContext => (
       <Location>
-        {locationContext => (
+        {({ hashRouting, ...locationContext }) => (
           <RouterImpl {...baseContext} {...locationContext} {...props} />
         )}
       </Location>
@@ -375,19 +378,18 @@ let Link = forwardRef(({ innerRef, ...props }, ref) => (
   <BaseContext.Consumer>
     {({ basepath, baseuri }) => (
       <Location>
-        {({ location, navigate }) => {
+        {({ location, navigate, hashRouting }) => {
           let { to, state, replace, getProps = k, ...anchorProps } = props;
           let href = resolve(to, baseuri);
           let isCurrent = location.pathname === href;
           let isPartiallyCurrent = startsWith(location.pathname, href);
-
           return (
             <a
               ref={ref || innerRef}
               aria-current={isCurrent ? "page" : undefined}
               {...anchorProps}
               {...getProps({ isCurrent, isPartiallyCurrent, href, location })}
-              href={href}
+              href={`${hashRouting ? "#" : ""}${href}`}
               onClick={event => {
                 if (anchorProps.onClick) anchorProps.onClick(event);
                 if (shouldNavigate(event)) {
@@ -449,7 +451,7 @@ let Redirect = props => (
   <BaseContext.Consumer>
     {({ baseuri }) => (
       <Location>
-        {locationContext => (
+        {({ hashRouting, ...locationContext }) => (
           <RedirectImpl {...locationContext} baseuri={baseuri} {...props} />
         )}
       </Location>
