@@ -261,7 +261,10 @@ let Link = forwardRef(({ innerRef, ...props }, ref) => (
               href={`${hashRouting ? "#" : ""}${href}`}
               onClick={event => {
                 if (anchorProps.onClick) anchorProps.onClick(event);
-                if (shouldNavigate(event)) {
+                if (
+                  (!anchorProps.target || anchorProps.target === "_self") &&
+                  shouldNavigate(event)
+                ) {
                   event.preventDefault();
                   navigate(href, { state, replace });
                 }
